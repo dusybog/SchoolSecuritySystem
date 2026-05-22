@@ -8,7 +8,7 @@ using SchoolSecuritySystem.Web.Controllers.Api.Base;
 namespace SchoolSecuritySystem.Web.Controllers.Api
 {
     [Route("api/departments")]
-    [Authorize(Roles = AppRoles.Center)]
+    [Authorize]
     public class DepartmentApiController : ApiControllerBase
     {
         private readonly IDepartmentService _departmentService;
@@ -19,9 +19,11 @@ namespace SchoolSecuritySystem.Web.Controllers.Api
         }
 
         [HttpGet]
+        [Authorize(Roles = AppRoles.Center)]
         public async Task<IActionResult> GetDepartments() => HandleResult(await _departmentService.GetListAsync());
 
         [HttpPost]
+        [Authorize(Roles = AppRoles.Center)]
         public async Task<IActionResult> CreateDepartment([FromBody] CreateDepartmentDto createDto)
         {
             var result = await _departmentService.CreateAsync(createDto);
@@ -30,6 +32,7 @@ namespace SchoolSecuritySystem.Web.Controllers.Api
         }
 
         [HttpPut("{departmentId:int}")]
+        [Authorize(Roles = AppRoles.Center)]
         public async Task<IActionResult> UpdateDepartment(int departmentId, [FromBody] UpdateDepartmentDto updateDto)
         {
             var result = await _departmentService.UpdateAsync(departmentId, updateDto);
@@ -38,6 +41,7 @@ namespace SchoolSecuritySystem.Web.Controllers.Api
         }
 
         [HttpDelete("{departmentId:int}")]
+        [Authorize(Roles = AppRoles.Center)]
         public async Task<IActionResult> DeleteDepartment(int departmentId)
         {
             var result = await _departmentService.DeleteAsync(departmentId);
@@ -46,7 +50,6 @@ namespace SchoolSecuritySystem.Web.Controllers.Api
         }
 
         [HttpGet("options")]
-        [Authorize]
         public async Task<IActionResult> GetDepartmentOptions() => HandleResult(await _departmentService.GetOptionsAsync());
     }
 }

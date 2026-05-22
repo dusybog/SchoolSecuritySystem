@@ -221,7 +221,7 @@ namespace SchoolSecuritySystem.Core.Services
                 return Result<bool>.Failure(Error.Invalid("未知的操作動作"));
             }
 
-            DateTime now = DateTime.Now;
+            DateTime now = DateTime.UtcNow;
 
             // 處理表單內容更新
             if (patchdto.FormData != null)
@@ -323,7 +323,7 @@ namespace SchoolSecuritySystem.Core.Services
                 total_count = 0,
                 success_count = 0,
                 created_by = _currentUserService.Email,
-                created_at = DateTime.Now
+                created_at = DateTime.UtcNow
             };
 
             await _submissionRepository.AddDispatchAsync(newDispatch);
@@ -340,11 +340,11 @@ namespace SchoolSecuritySystem.Core.Services
             {
                 case AppRoles.CenterDirector:
                     dispatch.director_sign = dto.Name;
-                    dispatch.director_sign_at = DateTime.Now;
+                    dispatch.director_sign_at = DateTime.UtcNow;
                     break;
                 case AppRoles.CenterOfficer:
                     dispatch.officer_sign = dto.Name;
-                    dispatch.officer_sign_at = DateTime.Now;
+                    dispatch.officer_sign_at = DateTime.UtcNow;
                     break;
                 default:
                     return Result<bool>.Failure(Error.Forbidden("無權進行此操作"));
@@ -443,7 +443,7 @@ namespace SchoolSecuritySystem.Core.Services
 
             if (jsonContent == null) return Result<byte[]>.Failure(Error.Invalid("無法將通報資料轉換為報表所需的格式。"));
 
-            DateTime currentPrintTime = DateTime.Now;
+            DateTime currentPrintTime = DateTime.UtcNow;
             var pdfBytes = await _reportService.GenerateReportAsync(jsonContent, dispatch, webRootPath, currentPrintTime);
             return Result<byte[]>.Success(pdfBytes);
         }
@@ -497,7 +497,7 @@ namespace SchoolSecuritySystem.Core.Services
                         status = 21,
                         message = "該單位未設定電子信箱，無法發送通知",
                         created_by = "系統排程",
-                        created_at = DateTime.Now
+                        created_at = DateTime.UtcNow
                     });
                 }
             }
