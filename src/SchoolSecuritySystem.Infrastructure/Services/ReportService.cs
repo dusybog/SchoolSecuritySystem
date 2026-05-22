@@ -25,7 +25,7 @@ namespace SchoolSecuritySystem.Infrastructure.Services
                     page.Size(PageSizes.A4);
                     page.MarginHorizontal(1.5f, Unit.Centimetre);
                     page.MarginTop(0.8f, Unit.Centimetre);
-                    page.MarginBottom(0.3f, Unit.Centimetre);
+                    page.MarginBottom(0.2f, Unit.Centimetre);
                     page.DefaultTextStyle(x => x.FontSize(12).FontFamily("Microsoft JhengHei"));
 
                     // ==========================================
@@ -103,9 +103,9 @@ namespace SchoolSecuritySystem.Infrastructure.Services
         // ==============================================
         // 共用樣式定義 (Shared Styles)
         // ==============================================
-        private static IContainer LabelCell(IContainer c) => c.Border(1).BorderColor(Colors.Black).Background(Colors.Grey.Lighten4).AlignMiddle().AlignCenter().Padding(4);
+        private static IContainer LabelCell(IContainer c) => c.Border(1).BorderColor(Colors.Black).Background(Colors.Grey.Lighten4).AlignMiddle().AlignCenter().Padding(4).DefaultTextStyle(x => x.Bold());
         private static IContainer ValueCell(IContainer c) => c.Border(1).BorderColor(Colors.Black).AlignMiddle().Padding(4);
-        private static IContainer LargeLabelCell(IContainer c) => c.Border(1).BorderColor(Colors.Black).Background(Colors.Grey.Lighten4).PaddingTop(10);
+        private static IContainer LargeLabelCell(IContainer c) => c.Border(1).BorderColor(Colors.Black).Background(Colors.Grey.Lighten4).PaddingTop(10).DefaultTextStyle(x => x.Bold());
         private static IContainer LargeValueCell(IContainer c) => c.Border(1).BorderColor(Colors.Black).AlignTop().Padding(4);
 
         // ==============================================
