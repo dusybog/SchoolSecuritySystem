@@ -132,7 +132,7 @@ namespace SchoolSecuritySystem.Core.Services
                 DepartmentName = e.department?.name ?? "未知部門",
                 Status = e.status,
                 CreatedBy = e.created_by,
-                CreatedAt = e.created_at
+                CreatedAt = e.created_at.AddHours(8)
             }).ToList();
 
             return Result<PagedResultDto<SubmissionListDto>>.Success(new PagedResultDto<SubmissionListDto>
@@ -161,13 +161,13 @@ namespace SchoolSecuritySystem.Core.Services
                     .Select(v => new VersionSummaryDto
                     {
                         V_Id = "v" + v.version,
-                        CreatedAt = v.created_at,
+                        CreatedAt = v.created_at.AddHours(8),
                         CreatedBy = v.created_by,
                     }).ToList(),
                 Workflows = entity.submission_workflows.OrderByDescending(w => w.created_at)
                     .Select(w => new WorkflowLogDto
                     {
-                        CreatedAt = w.created_at,
+                        CreatedAt = w.created_at.AddHours(8),
                         CreatedBy = w.created_by,
                         Comment = w.comment
                     }).ToList(),
@@ -270,9 +270,9 @@ namespace SchoolSecuritySystem.Core.Services
                 Id = d.id,
                 Status = d.status,
                 DirectorSign = d.director_sign,
-                DirectorSignAt = d.director_sign_at?.ToString("yyyy-MM-dd HH:mm"),
+                DirectorSignAt = d.director_sign_at?.AddHours(8),
                 OfficerSign = d.officer_sign,
-                OfficerSignAt = d.officer_sign_at?.ToString("yyyy-MM-dd HH:mm"),
+                OfficerSignAt = d.officer_sign_at?.AddHours(8),
 
                 Selects = d.dispatch_selects.Select(s => new DispatchSelectDto
                 {
@@ -285,7 +285,7 @@ namespace SchoolSecuritySystem.Core.Services
                     .OrderByDescending(l => l.created_at)
                     .Select(l => new DispatchLogDto
                     {
-                        Time = l.created_at.ToString("yyyy-MM-dd HH:mm:ss"),
+                        Time = l.created_at.AddHours(8),
                         Status = l.status,
                         Email = l.recipient_email,
                         Message = l.message,
@@ -429,7 +429,7 @@ namespace SchoolSecuritySystem.Core.Services
 
             if (jsonContent == null) return Result<byte[]>.Failure(Error.Invalid("無法將通報資料轉換為報表所需的格式。"));
 
-            DateTime currentPrintTime = DateTime.UtcNow;
+            DateTime currentPrintTime = DateTime.UtcNow.AddHours(8);
             var pdfBytes = await _reportService.GenerateReportAsync(jsonContent, dispatch, webRootPath, currentPrintTime);
             return Result<byte[]>.Success(pdfBytes);
         }

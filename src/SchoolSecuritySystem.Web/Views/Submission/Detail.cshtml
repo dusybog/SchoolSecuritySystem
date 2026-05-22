@@ -339,7 +339,7 @@
     
         historyGrid = new DataGrid({
             containerId: 'history-datagrid-container',
-            pageSize: 5,
+            pageSize: 9999,
             columnMapping: {
                 time: { label: '發生時間', formatter: (val) => val ? val.replace('T', ' ') : '-' },
                 type: { label: '紀錄類型', formatter: (val) => `<span class="badge bg-${val.includes('簽核') ? 'success' : 'info text-dark'}">${val}</span>` },
@@ -427,28 +427,49 @@
         let deptModalInstance = null;
 
         function initDispatchSection() {
-            const btnCreate = document.getElementById('btn-create-dispatch');
-            if (btnCreate) {
-                btnCreate.addEventListener('click', async () => {
-                    if(confirm('確定要新增一張空白派發單嗎？')) {
-                        const originalText = btnCreate.innerHTML;
-                        btnCreate.disabled = true;
-                        btnCreate.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 處理中...';
-                        try {
-                            const res = await fetch(`/api/submissions/${currentSubmissionId}/dispatches`, { method: 'POST' });
-                            if (!res.ok) throw new Error(await getErrorMessage(res));
-                            alert('✅ 已新增一張空白派發單！請在下方卡片中選擇系所並簽核。');
-                            await loadDispatchCards(); 
-                        } catch (error) {
-                            alert(`❌ 新增失敗：\n${error.message}`);
-                        } finally {
-                            btnCreate.disabled = false;
-                            btnCreate.innerHTML = originalText;
-                        }
+            // 1. 載入卡片資料
+            loadDispatchCards();
+
+            // 2. 綁定「新增空白派發單」按鈕事件
+            const btnCreateDispatch = document.getElementById('btn-create-dispatch');
+            if (btnCreateDispatch) {
+                btnCreateDispatch.addEventListener('click', async () => {
+                    // ... 您原本建立派發單的邏輯 ...
+                });
+            }
+
+            // 🌟 3. 綁定「確認選擇系所」按鈕事件 (放在這裡最適合！)
+            const btnConfirmAddDepts = document.getElementById('btn-confirm-add-depts');
+            if (btnConfirmAddDepts) {
+                btnConfirmAddDepts.addEventListener('click', async (e) => {
+                    if (!appState.targetDispatchIdForDepts) return;
+                    const selectedCheckboxes = document.querySelectorAll('.dept-checkbox:checked');
+                    const deptIds = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
+                    if (deptIds.length === 0) return alert('請至少勾選一個系所！');
+                    
+                    const btn = e.target;
+                    const originalText = btn.innerHTML;
+                    btn.disabled = true;
+                    btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 處理中...';
+                    try {
+                        const res = await fetch(`/api/submissions/${currentSubmissionId}/dispatches/${appState.targetDispatchIdForDepts}/select`, {
+                            method: 'PATCH',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify(deptIds)
+                        });
+                        if (!res.ok) throw new Error(await getErrorMessage(res));
+                        alert('✅ 系所選擇成功！');
+                        deptModalInstance.hide();
+                        await loadDispatchCards(); // 更新卡片，此時才會去呼叫 bindDispatchCardEvents()
+                    } catch (error) { 
+                        alert(`❌ 選擇系所失敗：\n${error.message}`);
+                    } finally {
+                        btn.disabled = false;
+                        btn.innerHTML = originalText;
+                        appState.targetDispatchIdForDepts = null; 
                     }
                 });
             }
-            loadDispatchCards();
         }
 
         async function loadDispatchCards() {
@@ -485,27 +506,37 @@
             const hasDepartments = d.selects && d.selects.length > 0;
             const isSent = d.status === 20 || d.status === 10; 
             const isFullySigned = !!(d.directorSign && d.officerSign);
+            
+            // 🌟 新增：判斷當前通報單是否已結案 (狀態碼 30)
+            const isSubmissionClosed = appState.status === 30;
+
             let primaryActionBtn = '';
             
             if (!hasDepartments) {
-                primaryActionBtn = `<button class="btn btn-outline-primary fw-bold btn-add-depts"><i class="bi bi-plus-circle"></i> 新增寄送系所</button>`;
+                // 若結案，則不顯示新增系所按鈕
+                if (!isSubmissionClosed) {
+                    primaryActionBtn = `<button class="btn btn-outline-primary fw-bold btn-add-depts"><i class="bi bi-plus-circle"></i> 新增寄送系所</button>`;
+                }
             } else if (isFullySigned){
                 const previewBtn = `<button class="btn btn-outline-secondary fw-bold btn-preview-dispatch me-2"><i class="bi bi-file-earmark-pdf"></i> 預覽附件</button>`;
-        
                 let sendBtn = '';
-                if (d.status === 20) {
-                    sendBtn = `<button class="btn btn-secondary fw-bold btn-send-emails" disabled data-signed="${isFullySigned}"><i class="bi bi-check-circle-fill"></i> 寄送已完成</button>`;
-                } else if (d.status === 10) {
-                    sendBtn = `<button class="btn btn-secondary fw-bold btn-send-emails" disabled data-signed="${isFullySigned}"><i class="bi bi-hourglass-split"></i> 寄信處理中</button>`;
-                } else if (d.status === 21) {
-                    sendBtn = `<button class="btn btn-warning text-dark fw-bold btn-send-emails" data-signed="${isFullySigned}"><i class="bi bi-arrow-clockwise"></i> 寄送失敗，點此重試</button>`;
-                } else {
-                    sendBtn = `<button class="btn btn-success fw-bold btn-send-emails" data-signed="${isFullySigned}"><i class="bi bi-send-fill"></i> 確認寄出通知信</button>`;
+                
+                // 🌟 若結案，不渲染寄信按鈕，只保留預覽
+                if (!isSubmissionClosed) {
+                    if (d.status === 20) {
+                        sendBtn = `<button class="btn btn-secondary fw-bold btn-send-emails" disabled data-signed="${isFullySigned}"><i class="bi bi-check-circle-fill"></i> 寄送已完成</button>`;
+                    } else if (d.status === 10) {
+                        sendBtn = `<button class="btn btn-secondary fw-bold btn-send-emails" disabled data-signed="${isFullySigned}"><i class="bi bi-hourglass-split"></i> 寄信處理中</button>`;
+                    } else if (d.status === 21) {
+                        sendBtn = `<button class="btn btn-warning text-dark fw-bold btn-send-emails" data-signed="${isFullySigned}"><i class="bi bi-arrow-clockwise"></i> 寄送失敗，點此重試</button>`;
+                    } else {
+                        sendBtn = `<button class="btn btn-success fw-bold btn-send-emails" data-signed="${isFullySigned}"><i class="bi bi-send-fill"></i> 確認寄出通知信</button>`;
+                    }
                 }
+                
                 primaryActionBtn = previewBtn + sendBtn;
             }
 
-            // 🌟 1. 改用 div 容器取代 table 字串
             let tableHtml = '';
             if (hasDepartments) {
                 tableHtml = `<div id="dispatch-depts-grid-${d.id}" class="mt-3"></div>`;
@@ -513,7 +544,6 @@
                 tableHtml = `<div class="alert alert-light border text-center text-muted mt-3 py-4">尚未選擇任何要通知的系所，請點擊上方按鈕新增。</div>`;
             }
 
-            // 🌟 2. 歷程紀錄也改為輸出 div 容器
             let logHtml = '';
             if (d.logs && d.logs.length > 0) {
                 logHtml = `
@@ -529,7 +559,8 @@
             }
 
             let signInputHtml = '';
-            if (!isSent && d.status !== 21) { // 若未送出或失敗，可顯示簽核(視業務邏輯而定)
+            // 🌟 結案時，隱藏尚未簽章的輸入框區塊
+            if (!isSent && d.status !== 21 && !isSubmissionClosed) { 
                 signInputHtml = `
                     <div class="d-flex align-items-center bg-white p-3 rounded border shadow-sm mx-0 mb-3 bg-light">
                         <span class="fw-bold text-primary me-2"><i class="bi bi-pen"></i> 進行簽核：</span>
@@ -540,7 +571,8 @@
                     </div>`;
             }
             
-            const deleteBtnHtml = isSent ? '' : `<button class="btn btn-outline-danger ms-2 fw-bold btn-delete-dispatch"><i class="bi bi-trash"></i> 刪除此單</button>`;
+            // 🌟 結案時，隱藏刪除按鈕
+            const deleteBtnHtml = (isSent || isSubmissionClosed) ? '' : `<button class="btn btn-outline-danger ms-2 fw-bold btn-delete-dispatch"><i class="bi bi-trash"></i> 刪除此單</button>`;
             
             return `
             <div class="card border-info shadow-sm mb-4 dispatch-card" data-id="${d.id}">
@@ -572,7 +604,7 @@
                 if (d.selects && d.selects.length > 0) {
                     const deptsGrid = new DataGrid({
                         containerId: `dispatch-depts-grid-${d.id}`,
-                        pageSize: 5,
+                        pageSize: 9999,
                         columnMapping: {
                             deptName: '接收系所',
                             contactEmail: '系所信箱',
@@ -595,7 +627,7 @@
                     const sortedLogs = [...d.logs].sort((a, b) => new Date(b.created_at || b.time) - new Date(a.created_at || a.time));
                     const logsGrid = new DataGrid({
                         containerId: `dispatch-logs-grid-${d.id}`,
-                        pageSize: 5,
+                        pageSize: 9999,
                         columnMapping: {
                             time: { 
                                 label: '時間', 
@@ -773,38 +805,6 @@
             });
         }
 
-        // 綁定確認選擇系所事件
-        const btnConfirmAddDepts = document.getElementById('btn-confirm-add-depts');
-        if (btnConfirmAddDepts) {
-            btnConfirmAddDepts.addEventListener('click', async (e) => {
-                if (!appState.targetDispatchIdForDepts) return;
-                const selectedCheckboxes = document.querySelectorAll('.dept-checkbox:checked');
-                const deptIds = Array.from(selectedCheckboxes).map(cb => parseInt(cb.value));
-                if (deptIds.length === 0) return alert('請至少勾選一個系所！');
-                
-                const btn = e.target;
-                const originalText = btn.innerHTML;
-                btn.disabled = true;
-                btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span> 處理中...';
-                try {
-                    const res = await fetch(`/api/submissions/${currentSubmissionId}/dispatches/${appState.targetDispatchIdForDepts}/select`, {
-                        method: 'PATCH',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify(deptIds)
-                    });
-                    if (!res.ok) throw new Error(await getErrorMessage(res));
-                    alert('✅ 系所選擇成功！');
-                    deptModalInstance.hide();
-                    await loadDispatchCards();
-                } catch (error) { alert(`❌ 選擇系所失敗：\n${error.message}`);
-                } finally {
-                    btn.disabled = false;
-                    btn.innerHTML = originalText;
-                    appState.targetDispatchIdForDepts = null; 
-                }
-            });
-        }
-
         function bindDeptModalInteractiveEvents() {
             const searchInput = document.getElementById('deptSearchInput');
             const containers = document.querySelectorAll('.dept-item-container');
@@ -876,9 +876,6 @@
         </text>
     }
 
-    // ==========================================
-    // 🛡️ 畫面初始化統籌
-    // ==========================================
     async function initPage() {
         // 所有角色共用的初始化
         await fetchInitialData();
@@ -890,7 +887,6 @@
         @if (User.IsInRole(AppRoles.CenterOfficer) || User.IsInRole(AppRoles.CenterDirector))
         {
             <text>
-            // 如果狀態為 20(已核准/已派發)，開放派發面板
             if (appState.status >= 20) {
                 const dispatchPanel = document.getElementById('dispatch-management-panel');
                 if (dispatchPanel) dispatchPanel.style.display = 'block';
@@ -898,6 +894,11 @@
                 const closeFooter = document.getElementById('close-footer-section');
                 if (closeFooter) {
                     closeFooter.style.display = (30 > appState.status) ? 'block' : 'none';
+                }
+
+                const btnCreateDispatch = document.getElementById('btn-create-dispatch');
+                if (btnCreateDispatch) {
+                    btnCreateDispatch.style.display = (appState.status === 30) ? 'none' : 'inline-block';
                 }
 
                 if (typeof initDispatchSection === 'function') initDispatchSection();

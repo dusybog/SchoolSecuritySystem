@@ -219,7 +219,7 @@ namespace SchoolSecuritySystem.Infrastructure.Repositories
                     status = finalStatus,
                     message = safeMessage,
                     created_by = "背景系統",
-                    created_at = DateTime.Now
+                    created_at = DateTime.UtcNow
                 };
                 _context.dispatch_logs.Add(log);
 
