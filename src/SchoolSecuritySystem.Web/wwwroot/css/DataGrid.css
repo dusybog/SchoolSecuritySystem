@@ -1,0 +1,107 @@
+﻿/* =========================================
+   DataGrid 專屬樣式 (DataGrid.css)
+   包含：桌面版寬度防禦、過長文字截斷、手機版 Grid 卡片排版
+========================================= */
+
+/* =========================================
+   1. 桌面版：表格基礎佈局與防破版機制
+========================================= */
+.data-grid-wrapper {
+    width: 100%;
+    overflow-x: auto; /* 當螢幕小於 900px 時，外層容器允許左右滑動 */
+}
+
+.data-grid-table {
+    width: 100%;
+    min-width: 900px; /* 🌟 防線一：設定最小寬度，確保欄位不會被無限擠壓 */
+    table-layout: fixed; /* 鎖定比例，防止被過長的連續英數字撐破 */
+    border-collapse: collapse;
+}
+
+    /* 處理所有儲存格，防止文字暴走 */
+    .data-grid-table td {
+        padding: 12px 8px;
+        vertical-align: middle;
+        overflow: hidden; /* 🌟 防線二：強制把超出格子的內容裁切掉 */
+        word-break: break-all; /* 🌟 防線三：遇到超長 Email 強制斷行，不允許往右覆蓋 */
+    }
+
+/* 過長文字單行截斷 (給標題等想要顯示 ... 的欄位使用) */
+.truncate-text {
+    white-space: nowrap !important;
+    overflow: hidden !important;
+    text-overflow: ellipsis !important;
+}
+
+/* 可點擊列的滑鼠游標樣式 */
+.data-grid-table tr.clickable-row:hover td {
+    background-color: #f8f9fa;
+}
+
+
+/* =========================================
+   2. 手機版：卡片式排版 (螢幕寬度小於 768px 時觸發)
+========================================= */
+@media (max-width: 768px) {
+
+    /* 釋放外層容器的最小寬度限制 */
+    .data-grid-table {
+        min-width: 100%;
+    }
+
+    /* 取消原本的 table 顯示模式，改為區塊 */
+    .data-grid-wrapper table,
+    .data-grid-wrapper thead,
+    .data-grid-wrapper tbody,
+    .data-grid-wrapper tr,
+    .data-grid-wrapper th,
+    .data-grid-wrapper td {
+        display: block;
+        width: 100%;
+    }
+
+        /* 隱藏桌面版表頭 (使用視覺隱藏法，保留無障礙閱讀器的讀取能力) */
+        .data-grid-wrapper thead tr {
+            position: absolute;
+            top: -9999px;
+            left: -9999px;
+        }
+
+    /* 把每一列 (tr) 變成獨立的卡片 */
+    .data-grid-wrapper tr {
+        background: #fff;
+        border: 1px solid #dee2e6;
+        border-radius: 0.5rem;
+        margin-bottom: 1rem;
+        padding: 0.5rem;
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+
+    /* 🌟 核心修正：每個儲存格 (td) 改用 Grid 排版，保證資料不消失 */
+    .data-grid-wrapper td {
+        display: grid;
+        grid-template-columns: auto 1fr; /* 左邊標題自動適應，右邊資料填滿剩餘空間 */
+        gap: 15px; /* 標題與資料之間的間距 */
+        align-items: center;
+        text-align: right;
+        padding: 0.75rem 0.5rem !important; /* 覆蓋桌面版的 padding */
+        border-bottom: 1px solid #f8f9fa;
+        /* 🌟 終極防線：強制解除桌面版的截斷與隱藏限制，讓手機版完整顯示 */
+        white-space: normal !important;
+        word-break: break-all !important;
+        overflow: visible !important;
+    }
+
+        /* 移除卡片內最後一行的底線 */
+        .data-grid-wrapper td:last-child {
+            border-bottom: none;
+        }
+
+        /* 🌟 魔法：讀取 HTML 中的 data-label 作為手機版的左側標題 */
+        .data-grid-wrapper td::before {
+            content: attr(data-label);
+            font-weight: 600;
+            color: #495057;
+            text-align: left;
+        }
+}

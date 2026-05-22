@@ -1,0 +1,7 @@
+<Solution>
+  <Project Path="src/SchoolSecuritySystem.Web/SchoolSecuritySystem.Web.csproj" />
+  <Project Path="src/SchoolSecuritySystem.Core/SchoolSecuritySystem.Core.csproj" />
+  <Project Path="src/SchoolSecuritySystem.Infrastructure/SchoolSecuritySystem.Infrastructure.csproj" />
+  <Project Path="tests/SchoolSecuritySystem.UnitTests/SchoolSecuritySystem.UnitTests.csproj" />
+  <Project Path="tests/SchoolSecuritySystem.IntegrationTests/SchoolSecuritySystem.IntegrationTests.csproj" />
+</Solution>

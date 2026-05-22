@@ -1,0 +1,155 @@
+﻿@using SchoolSecuritySystem.Core.Constants
+@{
+    ViewData["Title"] = "通報紀錄";
+}
+
+
+<style>
+    /* 頁籤樣式 (參考您的優雅設計) */
+    .tab-btn {
+        padding: 8px 16px;
+        cursor: pointer;
+        background: transparent;
+        border: 1px solid transparent;
+        border-radius: 4px;
+        font-size: 14px;
+        color: #555;
+        transition: all 0.2s;
+    }
+    .tab-btn:hover { background: #f5f5f5; }
+    .tab-btn.active {
+        background: #e6f2ff;
+        color: #0d6efd; /* 使用 Bootstrap 藍色，確保視覺一致性 */
+        border-color: #b3d7ff;
+        font-weight: bold;
+    }
+</style>
+
+<link rel="stylesheet" href="/css/DataGrid.css">
+
+<div style="max-width: 1000px; margin: 20px auto; font-family: sans-serif;">
+    
+    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; border-bottom: 1px solid #eee; padding-bottom: 10px;">
+        
+        <div id="tab-container" style="display: flex; gap: 10px;">
+            <button class="tab-btn" data-type="MySubmissions" data-title="我的通報">我的通報</button>
+            @if (!User.IsInRole(AppRoles.GeneralUser))
+            {
+                <button class="tab-btn" data-type="Pending" data-title="待處理">待處理</button>
+                <button class="tab-btn" data-type="Closed" data-title="已結案">已結案</button>
+                <button class="tab-btn active" data-type="All" data-title="全部通報">全部通報</button>
+            }
+        </div>
+
+        <div id="search-container" style="display: flex; gap: 5px;">
+            <input type="text" id="searchInput" placeholder="輸入通報單號" 
+                   style="padding: 6px 10px; border: 1px solid #ccc; border-radius: 4px; outline: none; width: 220px;">
+            <button id="searchBtn" style="padding: 6px 12px; cursor: pointer; background: #0d6efd; color: white; border: none; border-radius: 4px;">
+                搜尋
+            </button>
+        </div>
+
+    </div>
+
+    <div id="submission-grid-container"></div>
+</div>
+
+<script type="module">
+    import { DataGrid } from '/js/DataGrid.js';
+    import { formatSubmissionStatus, formatDateTime } from '/js/formatters.js';
+
+    // 確保當前網址結尾沒有多餘的斜線
+    const baseUrl = window.location.href.replace(/\/$/, '');
+    const baseApiUrl = '/api/submissions';
+
+    // 🌟 參數不要變：保持記錄當前的篩選條件
+    let currentQueryType = '@(User.IsInRole("GeneralUser") ? "MySubmissions" : "All")';
+    let currentTitle = '@(User.IsInRole("GeneralUser") ? "我的通報" : "全部通報")';
+
+        
+    let currentKeyword = '';
+
+    // 1. 初始化設定表格
+    const submissionGrid = new DataGrid({
+        containerId: 'submission-grid-container',
+        title: currentTitle, // 預設標題
+        apiUrl: `${baseApiUrl}?type=${currentQueryType}`, 
+        pageSize: 10,
+        columnMapping: {
+            'traceCode': '通報單號',
+            'title': '事件標題',
+            'reporterName': '通報人',      
+            'departmentName': '通報系所',   
+            'createdBy': '建立者',          
+            'createdAt': { 
+                label: '建立時間', 
+                formatter: formatDateTime 
+            },
+            'status': { 
+                label: '狀態', 
+                formatter: formatSubmissionStatus 
+            }
+        },
+        // 點擊列時開新分頁或跳轉 (依您需求設定 _blank 或直接轉址)
+        rowClickUrl: (row) => `submission/${row.id}` 
+    });
+
+    // 🌟 共用方法：組合參數並重新載入表格
+    function reloadGrid() {
+        const params = new URLSearchParams();
+        params.append('type', currentQueryType); // 保持參數名為 type
+        
+        if (currentKeyword) {
+            params.append('keyword', currentKeyword); // 保持參數名為 keyword
+        }
+        
+        submissionGrid.apiUrl = `${baseApiUrl}?${params.toString()}`;
+        submissionGrid.load(1);
+    }
+
+    // ==========================================
+    // 2. 實作頁籤切換邏輯
+    // ==========================================
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+        btn.addEventListener('click', (e) => {
+            // 切換 active 樣式
+            document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+            const targetBtn = e.currentTarget;
+            targetBtn.classList.add('active');
+
+            // 取得參數與新標題
+            currentQueryType = targetBtn.dataset.type; // 讀取 data-type
+            const newTitle = targetBtn.dataset.title;  // 讀取 data-title
+
+            // 更新 DataGrid 標題 (如果您的 DataGrid 類別有支援 setter)
+            if (submissionGrid.title !== undefined) {
+                submissionGrid.title = newTitle;
+            }
+
+            // 重新載入表格
+            reloadGrid();
+        });
+    });
+
+    // ==========================================
+    // 3. 實作搜尋框邏輯 (透過 API 更新表格)
+    // ==========================================
+    function executeSearch() {
+        currentKeyword = document.getElementById('searchInput').value.trim();
+        reloadGrid();
+    }
+
+    // 綁定點擊按鈕事件
+    document.getElementById('searchBtn').addEventListener('click', executeSearch);
+
+    // 綁定在輸入框按 Enter 鍵事件
+    document.getElementById('searchInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault(); // 避免觸發潛在的表單送出
+            executeSearch();
+        }
+    });
+
+    // 初次載入
+    submissionGrid.load(1);
+</script>

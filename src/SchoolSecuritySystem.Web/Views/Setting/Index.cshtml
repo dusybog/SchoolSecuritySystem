@@ -1,0 +1,351 @@
+﻿@{
+    ViewData["Title"] = "系統後臺管理";
+}
+
+<div class="container-fluid mt-4 mb-5">
+    <ul class="nav nav-tabs mb-4" id="managementTabs" role="tablist">
+        <li class="nav-item" role="presentation">
+            <button class="nav-link active fw-bold" id="admin-tab" data-bs-toggle="tab" data-bs-target="#admin-pane" type="button" role="tab">
+                🧑‍💼 管理員指派
+            </button>
+        </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="dept-tab" data-bs-toggle="tab" data-bs-target="#dept-pane" type="button" role="tab">
+                🏢 部門資料設定
+            </button>
+        </li>
+    </ul>
+
+    <div class="tab-content" id="managementTabsContent">
+
+        <div class="tab-pane fade show active" id="admin-pane" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <button class="btn btn-primary btn-sm shadow-sm" onclick="openAdminModal()">+ 新增管理員</button>
+            </div>
+            <div id="admin-grid-container"></div>
+        </div>
+
+        <div class="tab-pane fade" id="dept-pane" role="tabpanel">
+            <div class="d-flex justify-content-between align-items-center mb-3">
+                <button class="btn btn-success btn-sm shadow-sm" onclick="openDeptModal()">+ 新增部門</button>
+            </div>
+            <div id="dept-grid-container"></div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="adminModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-primary text-white">
+                <h5 class="modal-title" id="modalTitle">新增管理員</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="adminForm">
+                    <input type="hidden" id="adminId" />
+                    <div class="mb-3">
+                        <label class="form-label">Email 帳號 <span class="text-danger">*</span></label>
+                        <input type="email" class="form-control" id="email" required placeholder="name@school.edu.tw">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">系統角色 <span class="text-danger">*</span></label>
+                        <select class="form-select" id="roleId" required>
+                            <option value="">請選擇角色...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">管轄系所 (選填)</label>
+                        <select class="form-select" id="departmentId">
+                            <option value="">無 (全校權限)</option>
+                        </select>
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-primary" onclick="saveAdmin()">儲存</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div class="modal fade" id="deptModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content border-0 shadow">
+            <div class="modal-header bg-success text-white">
+                <h5 class="modal-title" id="deptModalTitle">新增部門</h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <form id="deptForm">
+                    <input type="hidden" id="deptId" />
+                    <div class="mb-3">
+                        <label class="form-label">部門代碼<span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="deptCode" required placeholder="例如: CSIE">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">部門名稱<span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="deptName" required placeholder="例如: 資訊工程系">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">聯絡信箱<span class="text-danger">*</span></label>
+                        <input type="text" class="form-control" id="deptContactEmail" required placeholder="例如: CSIE@o365.tku.edu.tw">
+                    </div>
+                </form>
+            </div>
+            <div class="modal-footer bg-light">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">取消</button>
+                <button type="button" class="btn btn-success" onclick="saveDept()">儲存部門</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script type="module">
+        import { DataGrid } from '/js/DataGrid.js'; // 請確認您的路徑
+
+        // 宣告全域變數，供 window 物件與 Modal 使用
+        window.adminList = [];
+        window.deptList = [];
+        const adminModal = new bootstrap.Modal(document.getElementById('adminModal'));
+        const deptModal = new bootstrap.Modal(document.getElementById('deptModal'));
+
+        // ==========================================
+        // 1. 初始化 DataGrid 實體
+        // ==========================================
+        const adminGrid = new DataGrid({
+        containerId: 'admin-grid-container', // 🌟 對應 HTML 中的容器 ID
+        title: '🧑‍💼 管理員權限清單',
+        apiUrl: '/api/userRoles',            // 🌟 指向正確的 userRoles API
+        columnMapping: {
+        'email': 'Email 帳號',
+        'roleName': {
+        label: '系統角色',
+        formatter: (val) => {
+        const badgeClass = val === 'SuperAdmin' ? 'bg-danger' : 'bg-info text-dark';
+        return `<span class="badge ${badgeClass}">${val}</span>`;
+        }
+        },
+        'departmentName': {
+        label: '管轄系所',
+        formatter: (val) => val ? val : '<span class="text-muted">全校</span>'
+        }
+        },
+    
+        actionHtml: (row) => `
+        <button class="btn btn-sm btn-outline-primary me-1" onclick="openAdminModal(${row.id})">編輯</button>
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteAdmin(${row.id})">刪除</button>
+        `
+        });
+
+        const deptGrid = new DataGrid({
+        containerId: 'dept-grid-container', // 🌟 請確保 HTML 中有一個 <div id="dept-grid-container"></div>
+        title: '🏢 部門資料清單',
+        apiUrl: '/api/departments',         // 直接指向 API 路由
+        columnMapping: {
+        'code': {
+        label: '部門代碼',
+        formatter: (val) => `<span class="badge bg-secondary">${val}</span>`
+        },
+        'name': '部門名稱',
+        'contactEmail': '聯絡信箱'
+        },
+    
+        actionHtml: (row) => `
+        <button class="btn btn-sm btn-outline-primary me-1" onclick="openDeptModal(${row.id})">編輯</button>
+        <button class="btn btn-sm btn-outline-danger" onclick="deleteDept(${row.id})">刪除</button>
+        `
+        });
+
+      
+
+        // ==========================================
+        // 初始化與頁籤切換事件
+        // ==========================================
+        document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tabBtn => {
+        tabBtn.addEventListener('shown.bs.tab', function (event) {
+        const targetId = event.target.getAttribute('data-bs-target');
+        if (targetId === '#admin-pane') window.loadAdmins();
+        if (targetId === '#dept-pane') window.loadDepartments();
+        });
+        });
+
+        document.addEventListener('DOMContentLoaded', () => {
+        window.loadOptions();
+        window.loadAdmins();
+        });
+
+      
+        
+        // 🌟 更新：並行呼叫兩組獨立的 Options API
+        window.loadOptions = async function() {
+        try {
+        // 使用 Promise.all 同時發出兩個請求，節省等待時間
+        const [rolesRes, deptsRes] = await Promise.all([
+        fetch('/api/userRoles/options'),
+        fetch('/api/departments/options')
+        ]);
+
+        if (!rolesRes.ok || !deptsRes.ok) return;
+
+        const rolesData = await rolesRes.json();
+        const deptsData = await deptsRes.json();
+
+        const roleSelect = document.getElementById('roleId');
+        const deptSelect = document.getElementById('departmentId');
+
+
+        rolesData?.forEach(r => roleSelect.add(new Option(r.name, r.id)));
+        deptsData?.forEach(d => deptSelect.add(new Option(d.name, d.id)));
+        } catch(e) { console.error("載入下拉選單失敗", e); }
+        };
+
+        // ==========================================
+        // 🧑‍💼 管理員 (UserRoles) API
+        // ==========================================
+        window.loadAdmins = async function() {
+        try {
+        const res = await fetch('/api/userRoles'); // 🌟 更新路由
+        window.adminList = await res.json();
+        adminGrid.setData(window.adminList);
+        } catch(e) { console.error(e); }
+        };
+
+        window.openAdminModal = function(id = null) {
+        document.getElementById('adminForm').reset();
+        const title = document.getElementById('modalTitle');
+        const idInput = document.getElementById('adminId');
+
+        if (id) {
+        const admin = window.adminList.find(a => a.id === id);
+        idInput.value = admin.id;
+        document.getElementById('email').value = admin.email;
+        document.getElementById('roleId').value = admin.roleId;
+        document.getElementById('departmentId').value = admin.departmentId || '';
+        title.innerText = '編輯管理員';
+        } else {
+        idInput.value = '';
+        title.innerText = '新增管理員';
+        }
+        adminModal.show();
+        };
+
+        window.saveAdmin = async function() {
+        const id = document.getElementById('adminId').value;
+        const payload = {
+        email: document.getElementById('email').value,
+        roleId: parseInt(document.getElementById('roleId').value),
+        departmentId: document.getElementById('departmentId').value ? parseInt(document.getElementById('departmentId').value) : null
+        };
+
+        if (!payload.email || !payload.roleId) {
+        alert('請填寫必填欄位！');
+        return;
+        }
+
+        // 🌟 更新路由
+        const url = id ? `/api/userRoles/${id}` : '/api/userRoles';
+        const method = id ? 'PUT' : 'POST';
+
+        const res = await fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+        adminModal.hide();
+        window.loadAdmins();
+        } else {
+        alert(`儲存失敗: ${await res.text()}`);
+        }
+        };
+
+        window.deleteAdmin = async function(id) {
+        if (!confirm('確定要刪除這位管理員嗎？這個動作無法復原！')) return;
+        // 🌟 更新路由
+        const res = await fetch(`/api/userRoles/${id}`, { method: 'DELETE' });
+        if (res.ok) window.loadAdmins();
+        else alert(`刪除失敗: ${await res.text()}`);
+        };
+
+
+        // ==========================================
+        // 🏢 部門 (Departments) API
+        // ==========================================
+        window.loadDepartments = async function() {
+        try {
+        const res = await fetch('/api/departments'); // 路由已是正確的
+        window.deptList = await res.json();
+        deptGrid.setData(window.deptList);
+        } catch (error) { console.error(error); }
+        };
+
+        window.openDeptModal = function(id = null) {
+        document.getElementById('deptForm').reset();
+        const title = document.getElementById('deptModalTitle');
+        const idInput = document.getElementById('deptId');
+
+        if (id) {
+        const dept = window.deptList.find(d => d.id === id);
+        idInput.value = dept.id;
+        document.getElementById('deptCode').value = dept.code;
+        document.getElementById('deptName').value = dept.name;
+        document.getElementById('deptContactEmail').value = dept.contactEmail;
+        title.innerText = '編輯部門';
+        } else {
+        idInput.value = '';
+        title.innerText = '新增部門';
+        }
+        deptModal.show();
+        };
+
+        window.saveDept = async function() {
+        const id = document.getElementById('deptId').value;
+        const payload = {
+        code: document.getElementById('deptCode').value.trim(),
+        name: document.getElementById('deptName').value.trim(),
+        contactEmail: document.getElementById('deptContactEmail').value.trim()
+        };
+
+        if (!payload.code || !payload.name) {
+        alert('請填寫部門代碼與名稱！');
+        return;
+        }
+
+        const url = id ? `/api/departments/${id}` : '/api/departments';
+        const method = id ? 'PUT' : 'POST';
+
+        try {
+        const res = await fetch(url, {
+        method: method,
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+        });
+
+        if (res.ok) {
+        deptModal.hide();
+        window.loadDepartments();
+        window.loadOptions(); // 更新下拉選單
+        } else {
+        alert(`儲存失敗: ${await res.text()}`);
+        }
+        } catch (error) { console.error(error); }
+        };
+
+        window.deleteDept = async function(id) {
+        if (!confirm('確定要刪除這個部門嗎？這個動作無法復原！')) return;
+        try {
+        const res = await fetch(`/api/departments/${id}`, { method: 'DELETE' });
+        if (res.ok) {
+        window.loadDepartments();
+        window.loadOptions(); // 更新下拉選單
+        } else {
+        alert(`刪除失敗: ${await res.text()}`);
+        }
+        } catch (error) { console.error(error); }
+        };
+    </script>
+}

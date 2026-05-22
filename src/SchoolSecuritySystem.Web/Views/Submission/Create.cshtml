@@ -1,0 +1,75 @@
+﻿@{
+    ViewData["Title"] = "新增通報";
+}
+
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+
+<div class="container mt-4 mb-5" style="max-width: 1000px;">
+    <h2 class="mb-4">新增</h2>
+    
+    <div id="form-container"></div>
+
+    <div class="mt-4 text-center">
+        <button id="btn-submit" class="btn btn-primary btn-lg w-50 shadow-sm">確認通報</button>
+    </div>
+</div>
+
+<script type="module">
+    import { renderForm } from '/js/FormRenderer.js';
+    import { extractFormData } from '/js/FormParser.js';
+    import { bindEventCategoryLogic } from '/js/EventCategoryHandler.js';
+
+    // ==========================================
+    // 1. 初始化空白表單
+    // ==========================================
+    function initCreateForm() {
+        const containerId = 'form-container';
+        renderForm(containerId, {});
+        bindEventCategoryLogic({});
+    }
+
+    initCreateForm();
+
+    // ==========================================
+    // 2. 綁定「確認通報」按鈕與 API 呼叫
+    // ==========================================
+    document.getElementById('btn-submit').onclick = async function () {
+        const data = extractFormData();
+        
+        if (!data) return;
+
+    // 防止使用者手抖重複連按，先將按鈕上鎖並顯示轉圈圈
+        const submitBtn = this;
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<span class="spinner-border spinner-border-sm" role="status" aria-hidden="true"></span> 傳送中...';
+
+        try {
+            const response = await fetch('/api/submissions', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(data)
+            });
+
+            // 檢查 HTTP 狀態碼是否為 2xx
+            if (!response.ok) {
+                const errorMsg = await response.text();
+                throw new Error(errorMsg || '伺服器發生錯誤');
+            }
+
+            const result = await response.json();
+            
+            alert('✅ 通報成功！');
+            
+            // window.location.href = `/submission/${result.data.id}`;
+            window.open('/submissions', '_blank');
+        } catch (error) {
+            console.error('API 錯誤:', error);
+            alert('❌ 通報失敗：\n' + error.message);
+        } finally {
+            submitBtn.disabled = false;
+            submitBtn.innerText = '確認通報';
+        }
+    };
+</script>
