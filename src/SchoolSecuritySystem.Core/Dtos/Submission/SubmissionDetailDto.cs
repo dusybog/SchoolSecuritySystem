@@ -34,9 +34,8 @@ namespace SchoolSecuritySystem.Core.Dtos.Submission
     public class VersionSummaryDto
     {
         public string V_Id { get; set; } = string.Empty; // 例: "v1", "v2"
-        public DateTime SavedAt { get; set; }
-        public string EditedBy { get; set; } = string.Empty;
-        public string Summary { get; set; } = string.Empty;
+        public DateTime CreatedAt { get; set; }
+        public string CreatedBy { get; set; } = string.Empty;
     }
 
     /// <summary>
@@ -45,8 +44,7 @@ namespace SchoolSecuritySystem.Core.Dtos.Submission
     public class WorkflowLogDto
     {
         public DateTime CreatedAt { get; set; }
-        public string Actor { get; set; } = string.Empty;
-        public string Action { get; set; } = string.Empty;     // 例: "送出審核", "退回修改"
+        public string CreatedBy { get; set; } = string.Empty;
         public string Comment { get; set; } = string.Empty;    // 審核意見
     }
 

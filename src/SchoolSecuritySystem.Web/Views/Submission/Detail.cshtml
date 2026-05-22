@@ -191,8 +191,17 @@
             const data = await res.json();
             appState.status = data.status;
             appState.latestVersionId = data.latestVersion ? `v${data.latestVersion}` : null;
-            appState.versions = (data.versions || []).map(v => ({ v_id: v.v_Id, savedAt: v.savedAt, editedBy: v.editedBy, summary: v.summary }));
-            appState.workflows = (data.workflows || []).map(w => ({ createdAt: w.createdAt, actor: w.actor, action: w.action, comment: w.comment }));
+            appState.versions = (data.versions || []).map(v => ({ 
+                v_Id: v.v_Id,             
+                createdAt: v.createdAt,   
+                createdBy: v.createdBy
+            }));
+
+            appState.workflows = (data.workflows || []).map(w => ({ 
+                createdAt: w.createdAt, 
+                createdBy: w.createdBy, 
+                comment: w.comment 
+            }));
             appState.dispatches = (data.dispatches || []).map(d => ({
                 id: d.id, status: d.status, directorSign: d.directorSign, directorSignAt: d.directorSignAt,
                 officerSign: d.officerSign, officerSignAt: d.officerSignAt, selects: d.selects || [], logs: d.logs || []
@@ -265,27 +274,36 @@
         container.innerHTML = html;
     }
 
-    function renderVersionList() { /* 保持原樣邏輯 */
+    function renderVersionList() {
         const list = document.getElementById('version-list');
         list.innerHTML = '';
+    
         if (!appState.versions || appState.versions.length === 0) {
-            list.innerHTML = '<div class="text-center p-4 text-muted small">尚無版本紀錄</div>'; return;
+            list.innerHTML = '<div class="text-center p-4 text-muted small">尚無版本紀錄</div>'; 
+            return;
         }
+    
         appState.versions.forEach((v, index) => {
             const isLatest = (index === 0);
             const a = document.createElement('a');
             a.href = '#';
             a.className = `list-group-item list-group-item-action border-0 border-bottom border-secondary-subtle version-item`;
-            a.dataset.vid = v.v_id;
-            const displayTime = v.savedAt ? v.savedAt.replace('T', ' ').substring(0, 19) : '未知時間';
+        
+            a.dataset.vid = v.v_Id; 
+            const displayTime = v.createdAt ? v.createdAt.replace('T', ' ').substring(0, 19) : '未知時間';
+
             a.innerHTML = `
                 <div class="d-flex justify-content-between align-items-center">
-                    <span class="fw-bold title-text text-primary">版本 ${v.v_id}</span>
+                    <span class="fw-bold title-text text-primary">版本 ${v.v_Id}</span>
                     ${isLatest ? '<span class="badge bg-danger rounded-pill shadow-sm">最新</span>' : ''}
                 </div>
-                <div class="small text-muted mt-1"><i class="bi bi-clock"></i> ${displayTime}</div>
-                <div class="small mt-1 text-truncate text-secondary">${v.summary}</div>`;
-            a.addEventListener('click', (e) => { e.preventDefault(); fetchAndRenderVersion(v.v_id); });
+                <div class="small text-muted mt-1"><i class="bi bi-clock"></i> ${displayTime}</div>`;
+            
+            a.addEventListener('click', (e) => { 
+                e.preventDefault(); 
+                fetchAndRenderVersion(v.v_Id); 
+            });
+        
             list.appendChild(a);
         });
     }
@@ -303,19 +321,30 @@
     }
 
     function initHistoryDataGrid() { /* 保持原樣邏輯 */
-        const versionLogs = appState.versions.map(v => ({ type: '表單異動', time: v.savedAt, actor: v.editedBy, desc: `儲存版本 ${v.v_id}: ${v.summary}` }));
-        const workflowLogs = appState.workflows.map(w => {
-            let desc = w.action; if (w.comment) desc += ` (意見: ${w.comment})`;
-            return { type: '簽核流程', time: w.createdAt, actor: w.actor, desc: desc };
-        });
-        const combinedHistory = [...versionLogs, ...workflowLogs].sort((a, b) => new Date(b.time) - new Date(a.time));
+        const versionLogs = appState.versions.map(v => ({ 
+            type: '內容異動', 
+            time: v.createdAt, 
+            actor: v.createdBy || '-', 
+            desc: `儲存版本 ${v.v_Id || ''}` 
+        }));
+
+        const workflowLogs = appState.workflows.map(w => ({ 
+            type: '簽核流程', 
+            time: w.createdAt, 
+            actor: w.createdBy || '-', 
+            desc: w.comment || '-'
+        }));
+    
+        const combinedHistory = [...workflowLogs, ...versionLogs].sort((a, b) => new Date(b.time) - new Date(a.time));
+    
         historyGrid = new DataGrid({
             containerId: 'history-datagrid-container',
             pageSize: 5,
             columnMapping: {
-                time: { label: '發生時間', formatter: (val) => val.replace('T', ' ') },
+                time: { label: '發生時間', formatter: (val) => val ? val.replace('T', ' ') : '-' },
                 type: { label: '紀錄類型', formatter: (val) => `<span class="badge bg-${val.includes('簽核') ? 'success' : 'info text-dark'}">${val}</span>` },
-                actor: '操作人員', desc: '詳細說明'
+                actor: '操作人員', 
+                desc: '備註'
             }
         });
         historyGrid.setData(combinedHistory);
@@ -432,12 +461,21 @@
                 
                 const dispatches = await res.json();
                 appState.dispatches = dispatches;
+                
                 if (dispatches.length === 0) {
                     container.innerHTML = '<div class="alert alert-secondary text-center mt-3">尚未建立任何派發單。請點擊右上方按鈕新增。</div>';
                     return;
                 }
+                
+                // 1. 將包含外層 DOM (尚未有 Grid 內容) 的字串塞入頁面
                 container.innerHTML = dispatches.map(d => generateDispatchCard(d)).join('');
+                
+                // 🌟 2. 在 DOM 存在後，綁定 DataGrid 渲染資料
+                initDispatchDataGrids(dispatches);
+                
+                // 3. 綁定按鈕事件 (寄信、刪除等)
                 bindDispatchCardEvents();
+                
             } catch (err) {
                 container.innerHTML = `<div class="alert alert-danger mt-3">載入失敗：${err.message}</div>`;
             }
@@ -445,7 +483,7 @@
 
         function generateDispatchCard(d) {
             const hasDepartments = d.selects && d.selects.length > 0;
-            const isSent = d.status === 20 || d.status === 21 || d.status === 10;
+            const isSent = d.status === 20 || d.status === 10; 
             const isFullySigned = !!(d.directorSign && d.officerSign);
             let primaryActionBtn = '';
             
@@ -453,53 +491,45 @@
                 primaryActionBtn = `<button class="btn btn-outline-primary fw-bold btn-add-depts"><i class="bi bi-plus-circle"></i> 新增寄送系所</button>`;
             } else if (isFullySigned){
                 const previewBtn = `<button class="btn btn-outline-secondary fw-bold btn-preview-dispatch me-2"><i class="bi bi-file-earmark-pdf"></i> 預覽附件</button>`;
-                const sendBtn = `<button class="btn ${isSent ? 'btn-secondary' : 'btn-success'} fw-bold btn-send-emails" ${isSent ? 'disabled' : ''} data-signed="${isFullySigned}"><i class="bi bi-send-fill"></i> ${isSent ? '已觸發寄信' : '確認寄出通知信'}</button>`;
+        
+                let sendBtn = '';
+                if (d.status === 20) {
+                    sendBtn = `<button class="btn btn-secondary fw-bold btn-send-emails" disabled data-signed="${isFullySigned}"><i class="bi bi-check-circle-fill"></i> 寄送已完成</button>`;
+                } else if (d.status === 10) {
+                    sendBtn = `<button class="btn btn-secondary fw-bold btn-send-emails" disabled data-signed="${isFullySigned}"><i class="bi bi-hourglass-split"></i> 寄信處理中</button>`;
+                } else if (d.status === 21) {
+                    sendBtn = `<button class="btn btn-warning text-dark fw-bold btn-send-emails" data-signed="${isFullySigned}"><i class="bi bi-arrow-clockwise"></i> 寄送失敗，點此重試</button>`;
+                } else {
+                    sendBtn = `<button class="btn btn-success fw-bold btn-send-emails" data-signed="${isFullySigned}"><i class="bi bi-send-fill"></i> 確認寄出通知信</button>`;
+                }
                 primaryActionBtn = previewBtn + sendBtn;
             }
 
+            // 🌟 1. 改用 div 容器取代 table 字串
             let tableHtml = '';
             if (hasDepartments) {
-                const trs = d.selects.map(s => {
-                    let badge = s.status === 20 ? '<span class="badge bg-success">✅ 寄送成功</span>' : 
-                                s.status === 21 ? '<span class="badge bg-danger">❌ 寄送失敗</span>' : 
-                                s.status === 10 ? '<span class="badge bg-primary">🔄 寄送中</span>' : 
-                                '<span class="badge bg-secondary">⏳ 未寄送</span>';
-                    return `<tr><td class="fw-bold text-dark">${s.deptName}</td><td class="fw-bold text-dark">${s.contactEmail}</td><td class="text-center">${badge}</td></tr>`;
-                }).join('');
-                tableHtml = `<table class="table table-bordered table-sm mt-3 shadow-sm bg-white"><thead class="table-light text-center text-secondary"><tr><th width="20%">接收系所</th><th width="60%">系所信箱</th><th width="20%">寄送狀態</th></tr></thead><tbody>${trs}</tbody></table>`;
+                tableHtml = `<div id="dispatch-depts-grid-${d.id}" class="mt-3"></div>`;
             } else {
                 tableHtml = `<div class="alert alert-light border text-center text-muted mt-3 py-4">尚未選擇任何要通知的系所，請點擊上方按鈕新增。</div>`;
             }
 
-            // 🌟 將歷程紀錄改為顯示隱藏式，並移除捲軸
+            // 🌟 2. 歷程紀錄也改為輸出 div 容器
             let logHtml = '';
             if (d.logs && d.logs.length > 0) {
-                const sortedLogs = [...d.logs].sort((a, b) => new Date(b.created_at || b.time) - new Date(a.created_at || a.time));
-                const logTrs = sortedLogs.map(l => {
-                    let logBadge = l.status === 20 ? '<span class="badge bg-success">成功</span>' : l.status === 21 ? '<span class="badge bg-danger">失敗</span>' : l.status === 10 ? '<span class="badge bg-primary">執行中</span>' : '<span class="badge bg-secondary">其他</span>';
-                    let timeStr = (l.created_at || l.time || '').replace('T', ' ').substring(0, 19);
-                    return `<tr><td class="text-center small text-muted">${timeStr}</td><td class="text-center">${logBadge}</td><td class="small">${l.recipient_email || l.email || '-'}</td><td class="small text-muted">${l.message}</td><td class="text-center small text-muted">${l.created_by || l.creator}</td></tr>`;
-                }).join('');
-
                 logHtml = `
                     <div class="mt-4 pt-3 border-top border-info-subtle">
                         <div class="d-flex justify-content-between align-items-center mb-2">
                             <h6 class="fw-bold text-secondary mb-0"><i class="bi bi-clock-history"></i> 寄送歷程紀錄</h6>
                             <button type="button" class="btn btn-sm btn-outline-primary fw-bold btn-toggle-dispatch-log">📊 顯示詳細歷程</button>
                         </div>
-                        <div class="dispatch-log-container table-responsive" style="display: none;">
-                            <table class="table table-sm table-hover table-bordered mb-0 bg-white shadow-sm" style="font-size: 0.9rem;">
-                                <thead class="table-light text-secondary text-center">
-                                    <tr><th width="15%">時間</th><th width="10%">結果</th><th width="25%">目標信箱</th><th width="40%">詳細訊息</th><th width="10%">操作者</th></tr>
-                                </thead>
-                                <tbody>${logTrs}</tbody>
-                            </table>
+                        <div class="dispatch-log-container" style="display: none;">
+                            <div id="dispatch-logs-grid-${d.id}"></div>
                         </div>
                     </div>`;
             }
 
             let signInputHtml = '';
-            if (!isSent) {
+            if (!isSent && d.status !== 21) { // 若未送出或失敗，可顯示簽核(視業務邏輯而定)
                 signInputHtml = `
                     <div class="d-flex align-items-center bg-white p-3 rounded border shadow-sm mx-0 mb-3 bg-light">
                         <span class="fw-bold text-primary me-2"><i class="bi bi-pen"></i> 進行簽核：</span>
@@ -534,6 +564,66 @@
                     ${logHtml}
                 </div>
             </div>`;
+        }
+
+        function initDispatchDataGrids(dispatches) {
+            dispatches.forEach(d => {
+                // 綁定系所表格
+                if (d.selects && d.selects.length > 0) {
+                    const deptsGrid = new DataGrid({
+                        containerId: `dispatch-depts-grid-${d.id}`,
+                        pageSize: 5,
+                        columnMapping: {
+                            deptName: '接收系所',
+                            contactEmail: '系所信箱',
+                            status: {
+                                label: '寄送狀態',
+                                formatter: (val) => {
+                                    if (val === 20) return '<span class="badge bg-success">✅ 寄送成功</span>';
+                                    if (val === 21) return '<span class="badge bg-danger">❌ 寄送失敗</span>';
+                                    if (val === 10) return '<span class="badge bg-primary">🔄 寄送中</span>';
+                                    return '<span class="badge bg-secondary">⏳ 未寄送</span>';
+                                }
+                            }
+                        }
+                    });
+                    deptsGrid.setData(d.selects);
+                }
+
+                // 綁定歷程紀錄表格
+                if (d.logs && d.logs.length > 0) {
+                    const sortedLogs = [...d.logs].sort((a, b) => new Date(b.created_at || b.time) - new Date(a.created_at || a.time));
+                    const logsGrid = new DataGrid({
+                        containerId: `dispatch-logs-grid-${d.id}`,
+                        pageSize: 5,
+                        columnMapping: {
+                            time: { 
+                                label: '時間', 
+                                formatter: (_, row) => (row.created_at || row.time || '').replace('T', ' ').substring(0, 19) 
+                            },
+                            status: {
+                                label: '結果',
+                                formatter: (val) => {
+                                    if (val === 20) return '<span class="badge bg-success">成功</span>';
+                                    if (val === 21) return '<span class="badge bg-danger">失敗</span>';
+                                    if (val === 10) return '<span class="badge bg-primary">執行中</span>';
+                                    return '<span class="badge bg-secondary">其他</span>';
+                                }
+                            },
+                            email: { 
+                                label: '目標信箱', 
+                                formatter: (_, row) => row.recipient_email || row.email || '-' 
+                            },
+                            message: '詳細訊息',
+                            creator: { 
+                                label: '操作者', 
+                                formatter: (_, row) => row.created_by || row.creator || '-' 
+                            }
+                        }
+                    });
+                    logsGrid.setData(sortedLogs);
+                }
+            });
         }
 
         function bindDispatchCardEvents() {
@@ -676,7 +766,7 @@
                     btnToggleLog.addEventListener('click', () => {
                         const isHidden = logContainer.style.display === 'none';
                         logContainer.style.display = isHidden ? 'block' : 'none';
-                        btnToggleLog.innerHTML = isHidden ? '🙈 隱藏詳細歷程' : '📊 顯示詳細歷程';
+                        btnToggleLog.innerHTML = isHidden ? '📊 隱藏詳細歷程' : '📊 顯示詳細歷程';
                         btnToggleLog.className = isHidden ? 'btn btn-sm btn-secondary fw-bold btn-toggle-dispatch-log' : 'btn btn-sm btn-outline-primary fw-bold btn-toggle-dispatch-log';
                     });
                 }

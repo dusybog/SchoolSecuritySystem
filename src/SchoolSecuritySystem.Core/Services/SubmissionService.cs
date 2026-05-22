@@ -161,30 +161,16 @@ namespace SchoolSecuritySystem.Core.Services
                     .Select(v => new VersionSummaryDto
                     {
                         V_Id = "v" + v.version,
-                        SavedAt = v.created_at,
-                        EditedBy = v.created_by,
-                        Summary = "版本儲存"
+                        CreatedAt = v.created_at,
+                        CreatedBy = v.created_by,
                     }).ToList(),
                 Workflows = entity.submission_workflows.OrderByDescending(w => w.created_at)
                     .Select(w => new WorkflowLogDto
                     {
                         CreatedAt = w.created_at,
-                        Actor = w.created_by,
-                        Action = w.created_by,
-                        Comment = w.comment ?? "核准"
+                        CreatedBy = w.created_by,
+                        Comment = w.comment
                     }).ToList(),
-                //Dispatches = entity.submission_dispatches.OrderByDescending(d => d.created_at)
-                //    .Select(d => new DispatchRecordDto
-                //    {
-                //        Id = d.id,
-                //        Status = d.status,
-                //        DirectorSign = d.director_sign,
-                //        DirectorSignAt = d.director_sign_at,
-                //        OfficerSign = d.officer_sign,
-                //        OfficerSignAt = d.officer_sign_at,
-                //        Depts = d.dispatch_selects.Select(s => s.department?.name ?? "未知系所").ToList()
-                //    }).ToList()
-
             };
 
             return Result<SubmissionDetailDto>.Success(dto);
@@ -244,7 +230,7 @@ namespace SchoolSecuritySystem.Core.Services
                     encrypted_dek = _encryptionService.Encrypt(Convert.ToBase64String(plainDek)),
                     kek_version = 1,
                     key_updated_at = now,
-                    created_by = _currentUserService.Role,
+                    created_by = _currentUserService.Email,
                     created_at = now
                 });
             }
@@ -253,8 +239,8 @@ namespace SchoolSecuritySystem.Core.Services
             {
                 previous_status = submission.status,
                 current_status = newStatus,
-                comment = "核准",
-                created_by = _currentUserService.Role,
+                comment = patchdto.Comment,
+                created_by = _currentUserService.Email,
                 created_at = now
             });
 
