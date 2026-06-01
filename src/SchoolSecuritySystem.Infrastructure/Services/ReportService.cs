@@ -4,14 +4,18 @@ using QuestPDF.Helpers;
 using QuestPDF.Infrastructure;
 using PdfSharp.Pdf.IO;
 using SchoolSecuritySystem.Core.Entities;
+using SchoolSecuritySystem.Core.Interfaces.Repositories;
 
 namespace SchoolSecuritySystem.Infrastructure.Services
 {
     public class ReportService : IReportService
     {
-        public ReportService()
+        private readonly IPdfPasswordRepository _pdfPasswordRepo;
+
+        public ReportService(IPdfPasswordRepository pdfPasswordRepo)
         {
             QuestPDF.Settings.License = LicenseType.Community;
+            _pdfPasswordRepo = pdfPasswordRepo;
         }
 
         public async Task<byte[]> GenerateReportAsync(JsonNode jsonContent, submission_dispatch SD, string webRootPath, DateTime printTime)
@@ -76,6 +80,14 @@ namespace SchoolSecuritySystem.Infrastructure.Services
             });
 
             // ==========================================
+            // 🌟 從資料庫動態取得 PDF 密碼
+            // ==========================================
+            var passwordHistory = await _pdfPasswordRepo.GetHistoryAsync(1);
+
+            // 如果資料庫有密碼則使用，若無則預設為空字串 (不加密) 或您可以改回 "123" 作為預設防護
+            string pdfPassword = passwordHistory.FirstOrDefault()?.password ?? "";
+
+            // ==========================================
             // 輸出 PDF 並套用 PdfSharp 保全設定
             // ==========================================
             byte[] rawPdfBytes = document.GeneratePdf();
@@ -86,7 +98,7 @@ namespace SchoolSecuritySystem.Infrastructure.Services
                 var pdfDocument = PdfReader.Open(inputStream, PdfDocumentOpenMode.Modify);
                 var securitySettings = pdfDocument.SecuritySettings;
 
-                securitySettings.UserPassword = "123";
+                securitySettings.UserPassword = pdfPassword;
                 securitySettings.OwnerPassword = Guid.NewGuid().ToString();
                 securitySettings.PermitFullQualityPrint = true;
                 securitySettings.PermitExtractContent = false;
