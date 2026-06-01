@@ -15,12 +15,10 @@ namespace SchoolSecuritySystem.Infrastructure
             services.AddScoped<IRoleRepository, RoleRepository>();
             services.AddScoped<ISubmissionRepository, SubmissionRepository>();
             services.AddScoped<ISequenceRepository, SequenceRepository>();
+            services.AddScoped<IPdfPasswordRepository, PdfPasswordRepository>();
             services.AddScoped<IReportService, ReportService>();
             services.AddSingleton<IEmailTaskQueue, EmailTaskQueue>();
             services.AddScoped<IEmailService, EmailService>();
-
-
-
             return services;
         }
     }

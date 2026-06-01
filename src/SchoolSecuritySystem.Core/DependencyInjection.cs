@@ -13,8 +13,7 @@ namespace SchoolSecuritySystem.Core
             services.AddScoped<IRoleService, RoleService>();
             services.AddScoped<ISerialNumberService, SerialNumberService>();
             services.AddScoped<ISubmissionService, SubmissionService>();
-
-
+            services.AddScoped<IPdfSettingService, PdfSettingService>();
             return services;
         }
     }

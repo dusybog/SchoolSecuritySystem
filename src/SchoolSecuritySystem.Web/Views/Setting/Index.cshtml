@@ -14,6 +14,11 @@
                 🏢 部門資料設定
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="pdf-tab" data-bs-toggle="tab" data-bs-target="#pdf-pane" type="button" role="tab">
+                🔒 PDF密碼設定
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content" id="managementTabsContent">
@@ -31,6 +36,24 @@
             </div>
             <div id="dept-grid-container"></div>
         </div>
+
+        <div class="tab-pane fade" id="pdf-pane" role="tabpanel">
+            <div class="card border-0 shadow-sm mb-4" style="max-width: 640px;">
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label fw-bold">PDF 開啟密碼</label>
+                        <input type="text" class="form-control" id="pdfPasswordInput" placeholder="請輸入欲設定之密碼">
+                        <div class="form-text">
+                            此密碼將用於保護系統匯出的通報單 PDF 檔案。變更後立即生效。
+                        </div>
+                    </div>
+                    <button type="button" class="btn btn-primary" onclick="savePdfPassword()">儲存新密碼</button>
+                    <span id="pdfSaveMsg" class="ms-2 fw-bold text-success"></span>
+                </div>
+            </div>
+            <div id="pdf-grid-container"></div>
+        </div>
+
     </div>
 </div>
 
@@ -57,7 +80,7 @@
                     <div class="mb-3">
                         <label class="form-label">管轄系所 (選填)</label>
                         <select class="form-select" id="departmentId">
-                            <option value="">無 (全校權限)</option>
+                            <option value="">請選擇部門...</option>
                         </select>
                     </div>
                 </form>
@@ -104,171 +127,185 @@
 
 @section Scripts {
     <script type="module">
-        import { DataGrid } from '/js/DataGrid.js'; // 請確認您的路徑
+        import { DataGrid } from '/js/DataGrid.js';
 
         // 宣告全域變數，供 window 物件與 Modal 使用
         window.adminList = [];
         window.deptList = [];
+        window.pdfPasswordList = []; // 🌟 新增 PDF 密碼歷史紀錄全域變數
+        
         const adminModal = new bootstrap.Modal(document.getElementById('adminModal'));
         const deptModal = new bootstrap.Modal(document.getElementById('deptModal'));
 
         // ==========================================
-        // 1. 初始化 DataGrid 實體
+        // 初始化 DataGrid 實體
         // ==========================================
         const adminGrid = new DataGrid({
-        containerId: 'admin-grid-container', // 🌟 對應 HTML 中的容器 ID
-        title: '🧑‍💼 管理員權限清單',
-        apiUrl: '/api/userRoles',            // 🌟 指向正確的 userRoles API
-        columnMapping: {
-        'email': 'Email 帳號',
-        'roleName': {
-        label: '系統角色',
-        formatter: (val) => {
-        const badgeClass = val === 'SuperAdmin' ? 'bg-danger' : 'bg-info text-dark';
-        return `<span class="badge ${badgeClass}">${val}</span>`;
-        }
-        },
-        'departmentName': {
-        label: '管轄系所',
-        formatter: (val) => val ? val : '<span class="text-muted">全校</span>'
-        }
-        },
-    
-        actionHtml: (row) => `
-        <button class="btn btn-sm btn-outline-primary me-1" onclick="openAdminModal(${row.id})">編輯</button>
-        <button class="btn btn-sm btn-outline-danger" onclick="deleteAdmin(${row.id})">刪除</button>
-        `
+            containerId: 'admin-grid-container',
+            title: '🧑‍💼 管理員權限清單',
+            apiUrl: '/api/userRoles',
+            columnMapping: {
+                'email': 'Email 帳號',
+                'roleName': {
+                    label: '系統角色',
+                    formatter: (val) => {
+                        const badgeClass = val === 'SuperAdmin' ? 'bg-danger' : 'bg-info text-dark';
+                        return `<span class="badge ${badgeClass}">${val}</span>`;
+                    }
+                },
+                'departmentName': {
+                    label: '管轄系所',
+                    formatter: (val) => val ? val : '<span class="text-muted">全校</span>'
+                }
+            },
+            actionHtml: (row) => `
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="openAdminModal(${row.id})">編輯</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteAdmin(${row.id})">刪除</button>
+            `
         });
 
         const deptGrid = new DataGrid({
-        containerId: 'dept-grid-container', // 🌟 請確保 HTML 中有一個 <div id="dept-grid-container"></div>
-        title: '🏢 部門資料清單',
-        apiUrl: '/api/departments',         // 直接指向 API 路由
-        columnMapping: {
-        'code': {
-        label: '部門代碼',
-        formatter: (val) => `<span class="badge bg-secondary">${val}</span>`
-        },
-        'name': '部門名稱',
-        'contactEmail': '聯絡信箱'
-        },
-    
-        actionHtml: (row) => `
-        <button class="btn btn-sm btn-outline-primary me-1" onclick="openDeptModal(${row.id})">編輯</button>
-        <button class="btn btn-sm btn-outline-danger" onclick="deleteDept(${row.id})">刪除</button>
-        `
+            containerId: 'dept-grid-container',
+            title: '🏢 部門資料清單',
+            apiUrl: '/api/departments',
+            columnMapping: {
+                'code': {
+                    label: '部門代碼',
+                    formatter: (val) => `<span class="badge bg-secondary">${val}</span>`
+                },
+                'name': '部門名稱',
+                'contactEmail': '聯絡信箱'
+            },
+            actionHtml: (row) => `
+                <button class="btn btn-sm btn-outline-primary me-1" onclick="openDeptModal(${row.id})">編輯</button>
+                <button class="btn btn-sm btn-outline-danger" onclick="deleteDept(${row.id})">刪除</button>
+            `
         });
 
-      
+        // 🌟 3. 初始化 PDF 密碼歷史紀錄的 DataGrid
+        const pdfGrid = new DataGrid({
+            containerId: 'pdf-grid-container',
+            title: '📜 密碼變更紀錄',
+            // 因為我們需要同時將第一筆資料顯示在 Input 框中，所以不設定 apiUrl，改以 setData() 手動塞入資料
+            columnMapping: {
+                'password': '設定之密碼',
+                'created_by': {
+                    label: '設定人員',
+                    // 兼容不同命名風格 (CamelCase / Snake_Case)
+                    formatter: (_, row) => row.createdBy || row.created_by || row.updatedBy || '-'
+                },
+                'created_at': {
+                    label: '設定時間',
+                    formatter: (_, row) => {
+                        const time = row.createdAt || row.created_at || row.updatedAt;
+                        return time ? time.replace('T', ' ').substring(0, 19) : '-';
+                    }
+                }
+            }
+        });
 
         // ==========================================
         // 初始化與頁籤切換事件
         // ==========================================
         document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tabBtn => {
-        tabBtn.addEventListener('shown.bs.tab', function (event) {
-        const targetId = event.target.getAttribute('data-bs-target');
-        if (targetId === '#admin-pane') window.loadAdmins();
-        if (targetId === '#dept-pane') window.loadDepartments();
-        });
+            tabBtn.addEventListener('shown.bs.tab', function (event) {
+                const targetId = event.target.getAttribute('data-bs-target');
+                if (targetId === '#admin-pane') window.loadAdmins();
+                if (targetId === '#dept-pane') window.loadDepartments();
+                if (targetId === '#pdf-pane') window.loadPdfPassword(); // 🌟 監聽 PDF 頁籤切換事件
+            });
         });
 
         document.addEventListener('DOMContentLoaded', () => {
-        window.loadOptions();
-        window.loadAdmins();
+            window.loadOptions();
+            window.loadAdmins();
         });
 
-      
-        
-        // 🌟 更新：並行呼叫兩組獨立的 Options API
         window.loadOptions = async function() {
-        try {
-        // 使用 Promise.all 同時發出兩個請求，節省等待時間
-        const [rolesRes, deptsRes] = await Promise.all([
-        fetch('/api/userRoles/options'),
-        fetch('/api/departments/options')
-        ]);
+            try {
+                const [rolesRes, deptsRes] = await Promise.all([
+                    fetch('/api/userRoles/options'),
+                    fetch('/api/departments/options')
+                ]);
 
-        if (!rolesRes.ok || !deptsRes.ok) return;
+                if (!rolesRes.ok || !deptsRes.ok) return;
 
-        const rolesData = await rolesRes.json();
-        const deptsData = await deptsRes.json();
+                const rolesData = await rolesRes.json();
+                const deptsData = await deptsRes.json();
 
-        const roleSelect = document.getElementById('roleId');
-        const deptSelect = document.getElementById('departmentId');
+                const roleSelect = document.getElementById('roleId');
+                const deptSelect = document.getElementById('departmentId');
 
-
-        rolesData?.forEach(r => roleSelect.add(new Option(r.name, r.id)));
-        deptsData?.forEach(d => deptSelect.add(new Option(d.name, d.id)));
-        } catch(e) { console.error("載入下拉選單失敗", e); }
+                rolesData?.forEach(r => roleSelect.add(new Option(r.name, r.id)));
+                deptsData?.forEach(d => deptSelect.add(new Option(d.name, d.id)));
+            } catch(e) { console.error("載入下拉選單失敗", e); }
         };
 
         // ==========================================
         // 🧑‍💼 管理員 (UserRoles) API
         // ==========================================
         window.loadAdmins = async function() {
-        try {
-        const res = await fetch('/api/userRoles'); // 🌟 更新路由
-        window.adminList = await res.json();
-        adminGrid.setData(window.adminList);
-        } catch(e) { console.error(e); }
+            try {
+                const res = await fetch('/api/userRoles');
+                window.adminList = await res.json();
+                adminGrid.setData(window.adminList);
+            } catch(e) { console.error(e); }
         };
 
         window.openAdminModal = function(id = null) {
-        document.getElementById('adminForm').reset();
-        const title = document.getElementById('modalTitle');
-        const idInput = document.getElementById('adminId');
+            document.getElementById('adminForm').reset();
+            const title = document.getElementById('modalTitle');
+            const idInput = document.getElementById('adminId');
 
-        if (id) {
-        const admin = window.adminList.find(a => a.id === id);
-        idInput.value = admin.id;
-        document.getElementById('email').value = admin.email;
-        document.getElementById('roleId').value = admin.roleId;
-        document.getElementById('departmentId').value = admin.departmentId || '';
-        title.innerText = '編輯管理員';
-        } else {
-        idInput.value = '';
-        title.innerText = '新增管理員';
-        }
-        adminModal.show();
+            if (id) {
+                const admin = window.adminList.find(a => a.id === id);
+                idInput.value = admin.id;
+                document.getElementById('email').value = admin.email;
+                document.getElementById('roleId').value = admin.roleId;
+                document.getElementById('departmentId').value = admin.departmentId || '';
+                title.innerText = '編輯管理員';
+            } else {
+                idInput.value = '';
+                title.innerText = '新增管理員';
+            }
+            adminModal.show();
         };
 
         window.saveAdmin = async function() {
-        const id = document.getElementById('adminId').value;
-        const payload = {
-        email: document.getElementById('email').value,
-        roleId: parseInt(document.getElementById('roleId').value),
-        departmentId: document.getElementById('departmentId').value ? parseInt(document.getElementById('departmentId').value) : null
-        };
+            const id = document.getElementById('adminId').value;
+            const payload = {
+                email: document.getElementById('email').value,
+                roleId: parseInt(document.getElementById('roleId').value),
+                departmentId: document.getElementById('departmentId').value ? parseInt(document.getElementById('departmentId').value) : null
+            };
 
-        if (!payload.email || !payload.roleId) {
-        alert('請填寫必填欄位！');
-        return;
-        }
+            if (!payload.email || !payload.roleId) {
+                alert('請填寫必填欄位！');
+                return;
+            }
 
-        // 🌟 更新路由
-        const url = id ? `/api/userRoles/${id}` : '/api/userRoles';
-        const method = id ? 'PUT' : 'POST';
+            const url = id ? `/api/userRoles/${id}` : '/api/userRoles';
+            const method = id ? 'PUT' : 'POST';
 
-        const res = await fetch(url, {
-        method: method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-        });
+            const res = await fetch(url, {
+                method: method,
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
 
-        if (res.ok) {
-        adminModal.hide();
-        window.loadAdmins();
-        } else {
-        alert(`儲存失敗: ${await res.text()}`);
-        }
+            if (res.ok) {
+                adminModal.hide();
+                window.loadAdmins();
+            } else {
+                alert(`儲存失敗: ${await res.text()}`);
+            }
         };
 
         window.deleteAdmin = async function(id) {
-        if (!confirm('確定要刪除這位管理員嗎？這個動作無法復原！')) return;
-        // 🌟 更新路由
-        const res = await fetch(`/api/userRoles/${id}`, { method: 'DELETE' });
-        if (res.ok) window.loadAdmins();
-        else alert(`刪除失敗: ${await res.text()}`);
+            if (!confirm('確定要刪除這位管理員嗎？這個動作無法復原！')) return;
+            const res = await fetch(`/api/userRoles/${id}`, { method: 'DELETE' });
+            if (res.ok) window.loadAdmins();
+            else alert(`刪除失敗: ${await res.text()}`);
         };
 
 
@@ -276,76 +313,129 @@
         // 🏢 部門 (Departments) API
         // ==========================================
         window.loadDepartments = async function() {
-        try {
-        const res = await fetch('/api/departments'); // 路由已是正確的
-        window.deptList = await res.json();
-        deptGrid.setData(window.deptList);
-        } catch (error) { console.error(error); }
+            try {
+                const res = await fetch('/api/departments');
+                window.deptList = await res.json();
+                deptGrid.setData(window.deptList);
+            } catch (error) { console.error(error); }
         };
 
         window.openDeptModal = function(id = null) {
-        document.getElementById('deptForm').reset();
-        const title = document.getElementById('deptModalTitle');
-        const idInput = document.getElementById('deptId');
+            document.getElementById('deptForm').reset();
+            const title = document.getElementById('deptModalTitle');
+            const idInput = document.getElementById('deptId');
 
-        if (id) {
-        const dept = window.deptList.find(d => d.id === id);
-        idInput.value = dept.id;
-        document.getElementById('deptCode').value = dept.code;
-        document.getElementById('deptName').value = dept.name;
-        document.getElementById('deptContactEmail').value = dept.contactEmail;
-        title.innerText = '編輯部門';
-        } else {
-        idInput.value = '';
-        title.innerText = '新增部門';
-        }
-        deptModal.show();
+            if (id) {
+                const dept = window.deptList.find(d => d.id === id);
+                idInput.value = dept.id;
+                document.getElementById('deptCode').value = dept.code;
+                document.getElementById('deptName').value = dept.name;
+                document.getElementById('deptContactEmail').value = dept.contactEmail;
+                title.innerText = '編輯部門';
+            } else {
+                idInput.value = '';
+                title.innerText = '新增部門';
+            }
+            deptModal.show();
         };
 
         window.saveDept = async function() {
-        const id = document.getElementById('deptId').value;
-        const payload = {
-        code: document.getElementById('deptCode').value.trim(),
-        name: document.getElementById('deptName').value.trim(),
-        contactEmail: document.getElementById('deptContactEmail').value.trim()
-        };
+            const id = document.getElementById('deptId').value;
+            const payload = {
+                code: document.getElementById('deptCode').value.trim(),
+                name: document.getElementById('deptName').value.trim(),
+                contactEmail: document.getElementById('deptContactEmail').value.trim()
+            };
 
-        if (!payload.code || !payload.name) {
-        alert('請填寫部門代碼與名稱！');
-        return;
-        }
+            if (!payload.code || !payload.name) {
+                alert('請填寫部門代碼與名稱！');
+                return;
+            }
 
-        const url = id ? `/api/departments/${id}` : '/api/departments';
-        const method = id ? 'PUT' : 'POST';
+            const url = id ? `/api/departments/${id}` : '/api/departments';
+            const method = id ? 'PUT' : 'POST';
 
-        try {
-        const res = await fetch(url, {
-        method: method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-        });
+            try {
+                const res = await fetch(url, {
+                    method: method,
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
 
-        if (res.ok) {
-        deptModal.hide();
-        window.loadDepartments();
-        window.loadOptions(); // 更新下拉選單
-        } else {
-        alert(`儲存失敗: ${await res.text()}`);
-        }
-        } catch (error) { console.error(error); }
+                if (res.ok) {
+                    deptModal.hide();
+                    window.loadDepartments();
+                    window.loadOptions();
+                } else {
+                    alert(`儲存失敗: ${await res.text()}`);
+                }
+            } catch (error) { console.error(error); }
         };
 
         window.deleteDept = async function(id) {
-        if (!confirm('確定要刪除這個部門嗎？這個動作無法復原！')) return;
-        try {
-        const res = await fetch(`/api/departments/${id}`, { method: 'DELETE' });
-        if (res.ok) {
-        window.loadDepartments();
-        window.loadOptions(); // 更新下拉選單
-        } else {
-        alert(`刪除失敗: ${await res.text()}`);
-        }
-        } catch (error) { console.error(error); }
+            if (!confirm('確定要刪除這個部門嗎？這個動作無法復原！')) return;
+            try {
+                const res = await fetch(`/api/departments/${id}`, { method: 'DELETE' });
+                if (res.ok) {
+                    window.loadDepartments();
+                    window.loadOptions();
+                } else {
+                    alert(`刪除失敗: ${await res.text()}`);
+                }
+            } catch (error) { console.error(error); }
         };
+
+        // ==========================================
+        // 🌟 4. PDF 密碼 (PDF Password) API 邏輯實作
+        // ==========================================
+        window.loadPdfPassword = async function() {
+            try {
+                const res = await fetch('/api/pdf/password');
+                if (!res.ok) return;
+                
+                // 假設後端回傳的是一個陣列，最新的紀錄在第一筆 (data[0])
+                const data = await res.json();
+                window.pdfPasswordList = data;
+
+                if (Array.isArray(data) && data.length > 0) {
+                    // 將最新一筆設定密碼帶入 Input 顯示
+                    document.getElementById('pdfPasswordInput').value = data[0].password || '';
+                    // 載入歷史紀錄到下方 DataGrid 中
+                    pdfGrid.setData(data);
+                } else {
+                    document.getElementById('pdfPasswordInput').value = '';
+                    pdfGrid.setData([]);
+                }
+            } catch (e) { console.error('載入 PDF 密碼失敗', e); }
+        };
+
+        window.savePdfPassword = async function() {
+            const password = document.getElementById('pdfPasswordInput').value.trim();
+            const msg = document.getElementById('pdfSaveMsg');
+            
+            if (!password) { 
+                alert('請輸入新的 PDF 密碼！'); 
+                return; 
+            }
+            
+            try {
+                // 呼叫 POST 新增一筆密碼紀錄
+                const res = await fetch('/api/pdf/password', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ password: password })
+                });
+
+                if (res.ok) {
+                    msg.innerText = '✓ 新密碼已儲存並生效';
+                    setTimeout(() => { msg.innerText = ''; }, 3000);
+                    // 重新載入，讓最新一筆顯示於 DataGrid 與 Input
+                    window.loadPdfPassword();
+                } else {
+                    alert(`儲存失敗: ${await res.text()}`);
+                }
+            } catch (e) { console.error(e); }
+        };
+
     </script>
 }

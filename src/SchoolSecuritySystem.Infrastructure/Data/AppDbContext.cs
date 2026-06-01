@@ -37,6 +37,8 @@ public partial class AppDbContext : DbContext
 
     public virtual DbSet<user_role> user_roles { get; set; }
 
+    public virtual DbSet<pdf_password_log> pdf_password_logs { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         modelBuilder
@@ -244,6 +246,23 @@ public partial class AppDbContext : DbContext
                 .HasForeignKey(d => d.role_id)
                 .OnDelete(DeleteBehavior.ClientSetNull)
                 .HasConstraintName("FK_admin_role");
+        });
+
+        modelBuilder.Entity<pdf_password_log>(entity =>
+        {
+            entity.HasKey(e => e.id).HasName("PRIMARY");
+
+            entity
+                .ToTable("pdf_password_log")
+                .UseCollation("utf8mb4_unicode_ci");
+
+            entity.HasIndex(e => e.created_at, "IX_pdfPasswordLog_createdAt");
+
+            entity.Property(e => e.password).HasMaxLength(128);
+            entity.Property(e => e.created_by).HasMaxLength(64);
+            entity.Property(e => e.created_at)
+                .HasDefaultValueSql("CURRENT_TIMESTAMP")
+                .HasColumnType("datetime");
         });
 
         OnModelCreatingPartial(modelBuilder);

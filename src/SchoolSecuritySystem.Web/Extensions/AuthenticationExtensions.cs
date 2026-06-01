@@ -24,7 +24,7 @@ namespace SchoolSecuritySystem.Web.Extensions
             // ==========================================
             services.Configure<OpenIdConnectOptions>(OpenIdConnectDefaults.AuthenticationScheme, (OpenIdConnectOptions options) =>
             {
-                options.Events ??= new OpenIdConnectEvents();
+                options.TokenValidationParameters.NameClaimType = "name";
 
                 options.Events.OnTokenValidated = async context =>
                 {
