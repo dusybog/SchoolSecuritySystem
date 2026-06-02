@@ -1,9 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
-using Microsoft.EntityFrameworkCore;
-using Pomelo.EntityFrameworkCore.MySql.Scaffolding.Internal;
+﻿using Microsoft.EntityFrameworkCore;
 using SchoolSecuritySystem.Core.Entities;
-
 namespace SchoolSecuritySystem.Infrastructure.Data;
 
 public partial class AppDbContext : DbContext
@@ -38,6 +34,8 @@ public partial class AppDbContext : DbContext
     public virtual DbSet<user_role> user_roles { get; set; }
 
     public virtual DbSet<pdf_password_log> pdf_password_logs { get; set; }
+
+    public virtual DbSet<system_audit_log> system_audit_logs { get; set; }
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -263,6 +261,36 @@ public partial class AppDbContext : DbContext
             entity.Property(e => e.created_at)
                 .HasDefaultValueSql("CURRENT_TIMESTAMP")
                 .HasColumnType("datetime");
+        });
+
+        modelBuilder.Entity<system_audit_log>(entity =>
+        {
+            entity.ToTable("system_audit_log");
+
+            entity.HasKey(e => e.id);
+
+            entity.HasIndex(e => e.created_at, "IX_system_audit_log_createdAt").IsDescending();
+
+            entity.Property(e => e.user_email).HasMaxLength(64);
+            entity.Property(e => e.ip_address).HasMaxLength(64);
+
+            entity.Property(e => e.http_method)
+                  .IsRequired()
+                  .HasMaxLength(10);
+
+            entity.Property(e => e.request_path)
+                  .IsRequired()
+                  .HasMaxLength(256);
+
+            entity.Property(e => e.record_hash)
+                  .IsRequired()
+                  .HasMaxLength(64);
+
+            entity.Property(e => e.created_at)
+                  .HasDefaultValueSql("CURRENT_TIMESTAMP");
+
+            entity.Property(e => e.key_version)
+                  .IsRequired();
         });
 
         OnModelCreatingPartial(modelBuilder);

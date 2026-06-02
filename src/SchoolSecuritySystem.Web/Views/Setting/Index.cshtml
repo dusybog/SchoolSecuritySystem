@@ -19,10 +19,14 @@
                 🔒 PDF密碼設定
             </button>
         </li>
+        <li class="nav-item" role="presentation">
+            <button class="nav-link fw-bold" id="audit-tab" data-bs-toggle="tab" data-bs-target="#audit-pane" type="button" role="tab">
+                📜 系統稽核紀錄
+            </button>
+        </li>
     </ul>
 
     <div class="tab-content" id="managementTabsContent">
-
         <div class="tab-pane fade show active" id="admin-pane" role="tabpanel">
             <div class="d-flex justify-content-between align-items-center mb-3">
                 <button class="btn btn-primary btn-sm shadow-sm" onclick="openAdminModal()">+ 新增管理員</button>
@@ -54,6 +58,9 @@
             <div id="pdf-grid-container"></div>
         </div>
 
+        <div class="tab-pane fade" id="audit-pane" role="tabpanel">
+            <div id="audit-grid-container"></div>
+        </div>
     </div>
 </div>
 
@@ -205,6 +212,48 @@
         });
 
         // ==========================================
+        // 系統稽核紀錄 (Server-side Pagination)
+        // ==========================================
+        const auditGrid = new DataGrid({
+            containerId: 'audit-grid-container',
+            title: '系統稽核紀錄',
+            apiUrl: '/api/audit_logs', // DataGrid 會自動補上 ?page=N&pageSize=10
+            pageSize: 10,
+            columnMapping: {
+                'created_at': {
+                    label: '發生時間',
+                    formatter: (val) => val ? val.replace('T', ' ').substring(0, 19) : '-'
+                },
+                'user_email': {
+                    label: '操作者',
+                    formatter: (val) => val ? val : '<span class="text-muted">訪客</span>'
+                },
+                'ip_address': '來源 IP',
+                'http_method': {
+                    label: '請求方式',
+                    formatter: (val) => {
+                        const colors = { 
+                            'GET': 'bg-success', 
+                            'POST': 'bg-primary', 
+                            'PUT': 'bg-warning text-dark', 
+                            'DELETE': 'bg-danger' 
+                        };
+                        const badgeClass = colors[val] || 'bg-secondary';
+                        return `<span class="badge ${badgeClass}">${val}</span>`;
+                    }
+                },
+                'request_path': '請求路徑',
+                'status_code': {
+                    label: '狀態碼',
+                    formatter: (val) => {
+                        const colorClass = (val >= 200 && val < 300) ? 'text-success' : 'text-danger';
+                        return `<span class="fw-bold ${colorClass}">${val}</span>`;
+                    }
+                }
+            }
+        });
+
+        // ==========================================
         // 初始化與頁籤切換事件
         // ==========================================
         document.querySelectorAll('button[data-bs-toggle="tab"]').forEach(tabBtn => {
@@ -212,7 +261,10 @@
                 const targetId = event.target.getAttribute('data-bs-target');
                 if (targetId === '#admin-pane') window.loadAdmins();
                 if (targetId === '#dept-pane') window.loadDepartments();
-                if (targetId === '#pdf-pane') window.loadPdfPassword(); // 🌟 監聽 PDF 頁籤切換事件
+                if (targetId === '#pdf-pane') window.loadPdfPassword();               
+                if (targetId === '#audit-pane') {
+                    auditGrid.load(1); 
+                }
             });
         });
 
