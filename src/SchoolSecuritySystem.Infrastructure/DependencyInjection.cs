@@ -19,7 +19,6 @@ namespace SchoolSecuritySystem.Infrastructure
             services.AddScoped<IReportService, ReportService>();
             services.AddSingleton<IEmailTaskQueue, EmailTaskQueue>();
             services.AddScoped<IEmailService, EmailService>();
-            services.AddScoped<ISystemAuditLogRepository, SystemAuditLogRepository>();
             return services;
         }
     }

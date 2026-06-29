@@ -14,7 +14,6 @@ namespace SchoolSecuritySystem.Core
             services.AddScoped<ISerialNumberService, SerialNumberService>();
             services.AddScoped<ISubmissionService, SubmissionService>();
             services.AddScoped<IPdfSettingService, PdfSettingService>();
-            services.AddScoped<ISystemAuditLogService, SystemAuditLogService>();
             return services;
         }
     }

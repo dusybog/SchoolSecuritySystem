@@ -1,3 +1,4 @@
+
 using Microsoft.EntityFrameworkCore;
 using SchoolSecuritySystem.Core;
 using SchoolSecuritySystem.Core.Interfaces.Services;
@@ -7,7 +8,6 @@ using SchoolSecuritySystem.Infrastructure.Data;
 using SchoolSecuritySystem.Infrastructure.Services;
 using SchoolSecuritySystem.Web.Extensions;
 using SchoolSecuritySystem.Web.Services;
-using SchoolSecuritySystem.Web.Middlewares;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -88,8 +88,6 @@ app.UseRouting();
 
 app.UseAuthentication();
 app.UseAuthorization();
-
-app.UseMiddleware<GlobalAuditMiddleware>();
 
 app.MapStaticAssets();
 
